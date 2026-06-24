@@ -1,0 +1,23 @@
+version: 2
+updates:
+  # npm dependencies (wrangler, tsx, typescript, sharp, @cloudflare/workers-types).
+  # Keeping wrangler current is also how the transitive esbuild/ws advisories
+  # (bundled inside wrangler) get resolved without a breaking manual downgrade.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      # Batch low-risk updates into a single PR to cut review noise.
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Keep GitHub Actions (checkout, setup-node, wrangler-action, lighthouse) pinned-current.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10

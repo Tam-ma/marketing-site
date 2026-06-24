@@ -1,7 +1,10 @@
-name: Deploy to Cloudflare Pages
+name: Deploy to Cloudflare
 
-# This workflow deploys the marketing site to Cloudflare Pages
-# Triggered on push to main branch or manual workflow dispatch
+# Deploys the marketing site Worker (src/index.ts, configured in wrangler.toml)
+# to Cloudflare. Triggered on push to main, or manually with an environment choice.
+#
+# NOTE: this site is a Cloudflare Worker that serves public/ via [assets] — it is
+# NOT a Pages project. Deploy with `wrangler deploy`, not `wrangler pages deploy`.
 
 on:
   push:
@@ -21,7 +24,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Deploy to Cloudflare Pages
+    name: Deploy Worker
 
     steps:
       - name: Checkout repository
@@ -30,39 +33,29 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          # wrangler 4 requires Node.js >= 22
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: 'package-lock.json'
 
       - name: Install dependencies
-        working-directory: .
         run: npm ci
 
-      - name: Deploy to Cloudflare Pages
+      - name: Deploy Worker
+        id: deploy
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy public --project-name=tamma-marketing-site
-          workingDirectory: .
-
-      - name: Comment deployment URL on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v9
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '🚀 Preview deployment: https://${{ env.CLOUDFLARE_DEPLOYMENT_ID }}.tamma-marketing-site.pages.dev'
-            })
+          # `wrangler deploy` runs the wrangler.toml [build] command, then deploys.
+          # --env selects the [env.*] block (production has the real KV namespace id).
+          command: deploy --env ${{ github.event.inputs.environment || 'production' }}
 
       - name: Performance audit
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: treosh/lighthouse-ci-action@v12
         with:
           urls: |
-            https://tamma-marketing-site.pages.dev
+            https://tamma.dev
           uploadArtifacts: true
           temporaryPublicStorage: true
